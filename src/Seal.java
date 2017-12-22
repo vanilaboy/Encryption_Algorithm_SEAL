@@ -1,5 +1,6 @@
-import java.util.HashMap;
-import java.util.Vector;
+import static java.lang.Math.ceil;
+import static java.lang.Math.log10;
+import static java.lang.Math.pow;
 
 /**
  * Created by root on 19.12.17 with love.
@@ -48,8 +49,6 @@ public class Seal {
 
         Tester tester = new Tester();
         tester.frequencyTest();
-        tester.sequentialTest();
- //       tester.testSeries();
     }
 
     public int[] encrypt(int[] text) {
@@ -267,8 +266,10 @@ public class Seal {
                 while (tmpZ[i] > 0) {
                     if ((tmpZ[i] & 1) == 0) {
                         sum--;
+                        zero++;
                     } else {
                         sum++;
+                        one++;
                     }
                     tmpZ[i] = tmpZ[i] >> 1;
                 }
@@ -280,14 +281,173 @@ public class Seal {
             } else {
                 System.out.println(" test Failed!");
             }
+            serialTest();
         }
 
         void serialTest() {
+            int[] tmpZ = z;
+            int[] n = new int[4];
+            for (int i = 0; i < z.length; i++) {
+                for (int j = 0; j < 32; j++) {
+                    int tmp = tmpZ[i] & 3;
+                    n[tmp]++;
+                    tmpZ[i] = tmpZ[i] >> 1;
+                }
+            }
+            double sum = 0;
+            for (int i = 0; i < 4; i++) {
+                sum += pow(n[i], 2);
+            }
+            double a = ((double) 4 / (zero + one - 1));
+            double b = ((double) 2 / (zero + one));
+            double answer = a * sum - b * (pow(zero, 2) + pow(one, 2)) + (double) 1;
 
+            System.out.println("Serial test = " + answer);
+            testSeriy();
         }
 
+        void testSeriy() {
+            int[] e = new int[10];
+            int k = 0;
+            for (int i = 0; i < 20; i++) {
+                e[i] = (int) ((size * 32 - i + 2) / pow(2, i + 3));
+                if (e[i] < 5) {
+                    k = i;
+                    break;
+                }
+            }
 
+            int[] B = new int[k];
+            int[] G = new int[k];
+            for (int i = 0; i < k; i++)
+                B[i] = G[i] = 0;
+            int prev = 0;
+            int len = 0;
+
+            int[] tmpZ = z;
+            for (int i = 0; i < z.length; i++) {
+                for (int j = 31; j >= 0; j--) {
+                    if (len == 0) {
+                        prev = (tmpZ[i] >> j) % 2;
+                        len = 1;
+                        continue;
+                    }
+                    if ((tmpZ[i] >> j) % 2 == prev)
+                        len++;
+                    else {
+                        if (len > k) {
+                            len = k;
+                        }
+                        if (prev >= 1) {
+                            B[len - 1]++;
+                        } else G[len - 1]++;
+                        len = 1;
+                        prev = (prev + 1) % 2;
+                    }
+                }
+            }
+            double sum1 = 0, sum2 = 0;
+            for (int i = 0; i < k; i++) {
+                sum1 += pow(B[i] - e[i], 2) / e[i];
+                sum2 += pow(G[i] - e[i], 2) / e[i];
+            }
+            double answer = sum1 + sum2;
+            double[][] table = {
+                    {1, 3.8415, 7.8794},
+                    {2, 5.9915, 10.5966},
+                    {4, 9.4877, 14.8603},
+                    {10, 18.307, 25.1882},
+                    {20, 31.4104, 39.9968},
+                    {22, 33.9244, 42.7957}
+            };
+            int v = 0;
+            for (int i = 5; i >= 0; i--) {
+                if (2 * k - 2 >= table[i][0]) {
+                    v = i;
+                    break;
+                }
+            }
+
+            if (answer < table[v][1]) {
+                System.out.println("Test passed. Answer  = " + answer);
+            } else if (answer < table[v][2]) {
+                System.out.printf("Test passed. Answer = " + answer);
+            } else {
+                System.out.println("Test Failed. Answer = " + answer);
+            }
+            autocorTest();
+        }
+
+        void autocorTest() {
+            int shift = 5;
+            int A = 0;
+            int[] tmpZ = z;
+            for (int i = 0; i < z.length; i++) {
+                for (int j = 0; j < 32; j++) {
+                    int a = (tmpZ[i] >> shift) % 2;
+                    int b = tmpZ[i] % 2;
+                    if ((a ^ b) > 0) {
+                        A++;
+                    }
+                    tmpZ[i] = tmpZ[i] >> 1;
+                }
+            }
+            double up = 2 * (A - ((double) ((one + zero) - shift)) / 2);
+            double answer = up / pow((one + zero) - shift, 2);
+            if (answer < 1.65 && answer > -1.65) {
+                System.out.println("Test Passed. Answer = " + answer);
+            } else if (answer < 2.575 && answer > -2.575) {
+                System.out.println("Test Passed. Answer = " + answer);
+            } else {
+                System.out.println("Test failed");
+            }
+            universalTest();
+        }
+
+        void universalTest() {
+            int L = 13;
+            int number = 1;
+            for (int i = 0; i < L - 1; i++) {
+                number = number << 1;
+                number++;
+            }
+            int Q = (int) (10 * pow(2, L));
+            int K = (int) (1000 * pow(2, L));
+
+
+            int[] T = new int[Q + K];
+            for (int j = 0; j < Q + K; j++)
+                T[j] = 0;
+
+            int q = 0;
+            double sum = 0;
+            for (int i = 0; i < size; i++) {
+                int t = z[i];
+                for (int j = 0; j < ceil(((double) 32) / L); j++) {
+                    if (q < Q) {
+                        T[t & number] = q;
+                    }
+                    if (q >= Q && q < Q + K) {
+                        sum += log10(q - T[t & number]);
+                        T[t & number] = q;
+                    }
+                    t = t >> L;
+                    q++;
+                }
+                if (q >= Q + K) break;
+            }
+            double answer = sum / K;
+            if (answer < 1.6449 && answer> -1.6449)
+                System.out.println("universTest passed");
+            else if (answer < 2.5758 && answer > -2.5758) {
+                System.out.println("universTest passed");
+            }
+            else {
+                System.out.println("universTest failed");
+            }
+        }
     }
-
-
 }
+
+
+

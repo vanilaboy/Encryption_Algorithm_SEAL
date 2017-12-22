@@ -13,15 +13,6 @@ public class Main {
         int blockSize = 512;
         int[] key = generateKey();
         Seal seal1 = new Seal(key, 234567);
-        Seal seal2 = new Seal(key, 0);
-        boolean identity = true;
-        for(int i = 0; i < seal1.z.length; i++) {
-            System.out.println(seal1.z[i] + "   ---   " + seal2.z[i]);
-            if(seal1.z[i] != seal2.z[i]) {
-                identity = false;
-                break;
-            }
-        }
 
         try {
             FileInputStream in = new FileInputStream(new File(pathInputFile));
